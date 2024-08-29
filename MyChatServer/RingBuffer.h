@@ -1,7 +1,7 @@
 #pragma once
 #include <iostream>
 
-#define RINGBUF_SIZE 10000
+#define RINGBUF_SIZE 1000
 
 class CRingBuffer
 {
@@ -19,12 +19,13 @@ public:
 	int	Peek(char* chpDest, int iSize);
 	void ClearBuffer(void);
 
-	//int	DirectEnqueueSize(void);
-	//int	DirectDequeueSize(void);
-	//int	MoveRear(int iSize);
-	//int	MoveFront(int iSize);
+	int	DirectEnqueueSize(void);
+	int	DirectDequeueSize(void);
+	int	MoveRear(int iSize);
+	int	MoveFront(int iSize);
+	char* GetFrontBufferPtr(void);
+	char* GetRearBufferPtr(void);
 
-private:
 	char* pRingBuffer;
 	int BufferSize;
 	int ReadPos;

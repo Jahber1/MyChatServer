@@ -129,10 +129,16 @@
   <ItemGroup>
     <ClCompile Include="Console.cpp" />
     <ClCompile Include="MyChatServer.cpp" />
+    <ClCompile Include="PacketMessage.cpp" />
+    <ClCompile Include="PacketProcedure.cpp" />
     <ClCompile Include="RingBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Console.h" />
+    <ClInclude Include="Message.h" />
+    <ClInclude Include="MyChatServer.h" />
+    <ClInclude Include="PacketMessage.h" />
+    <ClInclude Include="PacketProcedure.h" />
     <ClInclude Include="RingBuffer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -28,35 +28,11 @@ int CRingBuffer::GetBufferSize(void)
 
 int CRingBuffer::GetUseSize(void)
 {
-    /*if (WritePos > ReadPos)
-    {
-        return (WritePos - ReadPos);
-    }
-    else if (ReadPos > WritePos)
-    {
-        return ((WritePos + BufferSize) - ReadPos);
-    }
-    else
-    {
-        return 0;
-    }*/
     return CurrentSize;
 }
 
 int CRingBuffer::GetFreeSize(void)
 {
-    /* if (ReadPos > WritePos)
-     {
-         return (ReadPos - WritePos);
-     }
-     else if (WritePos > ReadPos)
-     {
-         return ((ReadPos + BufferSize) - WritePos);
-     }
-     else
-     {
-         return BufferSize;
-     }*/
     return BufferSize - CurrentSize;
 }
 
@@ -202,22 +178,110 @@ void CRingBuffer::ClearBuffer(void)
     CurrentSize = 0;
 }
 
-//int CRingBuffer::DirectEnqueueSize(void)
-//{
-//    return 0;
-//}
-//
-//int CRingBuffer::DirectDequeueSize(void)
-//{
-//    return 0;
-//}
-//
-//int CRingBuffer::MoveRear(int iSize)
-//{
-//    return 0;
-//}
-//
-//int CRingBuffer::MoveFront(int iSize)
-//{
-//    return 0;
-//}
+int CRingBuffer::DirectEnqueueSize(void)
+{
+    if (ReadPos < WritePos)
+    {
+        return BufferSize - WritePos;
+    }
+    else if (ReadPos > WritePos)
+    {
+        return  ReadPos - WritePos;
+    }
+    else
+    {
+        if (CurrentSize != BufferSize)
+        {
+            return BufferSize - WritePos;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+}
+
+int CRingBuffer::DirectDequeueSize(void)
+{
+    if (ReadPos < WritePos)
+    {
+        return WritePos - ReadPos;
+    }
+    else if (ReadPos > WritePos)
+    {
+        return BufferSize - ReadPos;
+    }
+    else
+    {
+        if (CurrentSize == BufferSize)
+        {
+            return BufferSize - ReadPos;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+}
+
+int CRingBuffer::MoveRear(int iSize)
+{
+    if (CurrentSize + iSize <= BufferSize)
+    {
+        if (WritePos + iSize >= BufferSize)
+        {
+            CurrentSize += BufferSize - WritePos;
+            WritePos = 0;
+            return BufferSize - WritePos;
+        }
+        else
+        {
+            WritePos += iSize;
+            CurrentSize += iSize;
+            return iSize;
+        }
+    }
+    else
+    {
+        int temp = BufferSize - CurrentSize;
+        WritePos = ReadPos;
+        CurrentSize = 0;
+        return temp;
+    }
+}
+
+int CRingBuffer::MoveFront(int iSize)
+{
+    if (iSize <= CurrentSize)
+    {
+        if (ReadPos + iSize >= BufferSize)
+        {
+            CurrentSize -= BufferSize - ReadPos;
+            ReadPos = 0;
+            return BufferSize - ReadPos;
+        }
+        else
+        {
+            ReadPos += iSize;
+            CurrentSize -= iSize;
+            return iSize;
+        }
+    }
+    else
+    {
+        int temp = CurrentSize;
+        ReadPos = WritePos;
+        CurrentSize = 0;
+        return temp;
+    }
+}
+
+char* CRingBuffer::GetFrontBufferPtr(void)
+{
+    return pRingBuffer + ReadPos;
+}
+
+char* CRingBuffer::GetRearBufferPtr(void)
+{
+    return pRingBuffer + WritePos;
+}
