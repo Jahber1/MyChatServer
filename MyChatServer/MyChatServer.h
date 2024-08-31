@@ -1,7 +1,6 @@
 #pragma once
 #include <iostream>
 #include <list>
-#include <winsock2.h>
 #include "RingBuffer.h"
 
 using namespace std;

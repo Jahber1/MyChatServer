@@ -6,7 +6,7 @@ void mpCreate(stPacketHeader* pHeader, stCreate* pPacket, char* NickName)
 	pHeader->bySize = sizeof(stCreate);
 	pHeader->byType = dfPACKET_CREATE;
 
-	strcpy(pPacket->NickName, NickName);
+	strcpy_s(pPacket->NickName, NickName);
 }
 
 void mpCreateOther(stPacketHeader* pHeader, stCreateOther* pPacket, char* NickName)
@@ -15,16 +15,17 @@ void mpCreateOther(stPacketHeader* pHeader, stCreateOther* pPacket, char* NickNa
 	pHeader->bySize = sizeof(stCreateOther);
 	pHeader->byType = dfPACKET_CREATE_OTHER;
 
-	strcpy(pPacket->NickName, NickName);
+	strcpy_s(pPacket->NickName, NickName);
 }
 
-void mpMessage(stPacketHeader* pHeader, stMessage* pPacket, char* chat)
+void mpMessage(stPacketHeader* pHeader, stMessage* pPacket, char* NickName, char* chat)
 {
 	pHeader->byCode = dfNETWORK_PACKET_CODE;
 	pHeader->bySize = sizeof(stMessage);
 	pHeader->byType = dfPACKET_MESSAGE;
 
-	strcpy(pPacket->Message, chat);
+	strcpy_s(pPacket->NickName, NickName);
+	strcpy_s(pPacket->Message, chat);
 }
 
 void mpDelete(stPacketHeader* pHeader, stDelete* pPacket, char* NickName)
@@ -33,5 +34,5 @@ void mpDelete(stPacketHeader* pHeader, stDelete* pPacket, char* NickName)
 	pHeader->bySize = sizeof(stDelete);
 	pHeader->byType = dfPACKET_DELETE;
 
-	strcpy(pPacket->NickName, NickName);
+	strcpy_s(pPacket->NickName, NickName);
 }

@@ -26,6 +26,7 @@ struct stCreateOther
 #define dfPACKET_MESSAGE 2
 struct stMessage
 {
+	char NickName[50];
 	char Message[MESSAGE_SIZE + 1];
 };
 

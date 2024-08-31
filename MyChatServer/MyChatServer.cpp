@@ -1,7 +1,7 @@
 ﻿#pragma comment(lib, "ws2_32")
-#include <iostream>
 #include <Winsock2.h>
 #include <WS2tcpip.h>
+#include <iostream>
 #include <list>
 #include "RingBuffer.h"
 #include "Message.h"
@@ -68,62 +68,121 @@ int main(void)
 		DebugBreak();
 	}
 
-	SESSION* pSession;
-
-	FD_SET rset;
-	FD_SET wset;
-
-	FD_ZERO(&rset);
-	FD_ZERO(&wset);
-
-	FD_SET(g_ListenSocket, &rset);
-	for (auto& entry : g_ClientList)
+	while(1)
 	{
-		FD_SET(entry->ClientSocket, &rset);
-		if (entry->SendQ.GetUseSize() > 0)
+		SESSION* pSession;
+
+		FD_SET rset;
+		FD_SET wset;
+
+		FD_ZERO(&rset);
+		FD_ZERO(&wset);
+
+		FD_SET(g_ListenSocket, &rset);
+		for (auto& entry : g_ClientList)
 		{
-			FD_SET(entry->ClientSocket, &wset);
+			FD_SET(entry->ClientSocket, &rset);
+			if (entry->SendQ.GetUseSize() > 0)
+			{
+				FD_SET(entry->ClientSocket, &wset);
+			}
+
 		}
 
+		timeval Time;
+		Time.tv_sec = 0;
+		Time.tv_usec = 0;
+
+		int iSelect_retval;
+		iSelect_retval = select(0, &rset, &wset, 0, &Time);
+
+		if (iSelect_retval == SOCKET_ERROR)
+		{
+			cout << "Select 소켓 에러" << WSAGetLastError() << endl;
+		}
+		else
+		{
+			if (FD_ISSET(g_ListenSocket, &rset))
+			{
+				netProc_Accept();
+			}
+
+			for (auto iter = g_ClientList.begin(); iter != g_ClientList.end(); )
+			{
+
+				if (iSelect_retval == 0)
+				{
+					break;
+				}
+
+				if (FD_ISSET((*iter)->ClientSocket, &rset))
+				{
+					--iSelect_retval;
+					netProc_Recv(*iter);
+				}
+
+				if (FD_ISSET((*iter)->ClientSocket, &wset))
+				{
+					--iSelect_retval;
+					netProc_Send((*iter));
+					if ((*iter)->ClientSocket == INVALID_SOCKET)
+					{
+						iter = g_ClientList.erase(iter);
+						continue;
+					}
+				}
+
+				if ((*iter)->ClientSocket == INVALID_SOCKET)
+				{
+					iter = g_ClientList.erase(iter);
+					continue;
+				}
+
+				++iter;
+			}
+		}
 	}
+}
 
-	timeval Time;
-	Time.tv_sec = 0;
-	Time.tv_usec = 0;
+int netProc_Accept()
+{
+	// 새로운 세션 생성
+	SESSION* NewSession = new SESSION;
+	ZeroMemory(NewSession, sizeof(NewSession));
 
-	int iSelect_retval;
-	iSelect_retval = select(0, &rset, &wset, 0, &Time);
+	// 클라 정보 받을 변수 선언
+	SOCKADDR_IN ClientAddr;
+	int addrlen = sizeof(ClientAddr);
+	int recv_retval;
 
-	if (iSelect_retval == SOCKET_ERROR)
+	// 메시지 전달용 패킷 선언
+	stPacketHeader Header;
+	stCreate Create;
+	stCreateOther CreateOther;
+	char buf[150];
+
+	NewSession->ClientSocket = accept(g_ListenSocket, (SOCKADDR*)&ClientAddr, &addrlen);
+	if (NewSession->ClientSocket == INVALID_SOCKET)
 	{
-		cout << "Select 소켓 에러" << WSAGetLastError() << endl;
+		cout << "Accpet 에러: " << WSAGetLastError() << endl;
+		return 0;
 	}
 	else
 	{
-		if (FD_ISSET(g_ListenSocket, &rset))
-		{
-			netProc_Accept();
-		}
+		cout << "연결 성공" << endl;
+		recv_retval = recv(NewSession->ClientSocket, buf, sizeof(buf), 0);
 
-		for (auto& entry : g_ClientList)
-		{
-			if (FD_ISSET(entry->ClientSocket, &rset))
-			{
-				--iSelect_retval;
-				netProc_Recv(entry);
-			}
-			if (FD_ISSET(entry->ClientSocket, &wset))
-			{
-				--iSelect_retval;
-				netProc_Send(entry);
-			}
+		NewSession->ID = ++g_ID;
+		strcpy_s(NewSession->NickName, buf + 3);
+		g_ClientList.push_back(NewSession);
 
-			if (iSelect_retval == 0)
-			{
-				//cout << "Select 타임 아웃" << endl;
-				break;
-			}
-		}
+		// 유저 접속 메시지 전달
+		/*mpCreate(&Header, &Create, NewSession->NickName);
+		SendUniCast(NewSession, &Header, (char*)&Create);*/
+
+		// 다른 유저에게 내 접속 메시지 전달
+		mpCreateOther(&Header, &CreateOther, NewSession->NickName);
+		SendBroadCast(NewSession, &Header, (char*)&CreateOther);
 	}
 }
 
@@ -235,58 +294,6 @@ void netProc_Send(SESSION* pSession)
 	}
 }
 
-int netProc_Accept()
-{
-	// 새로운 세션 생성
-	SESSION* NewSession = new SESSION;
-	ZeroMemory(NewSession, sizeof(NewSession));
-
-	// 클라 정보 받을 변수 선언
-	SOCKADDR_IN ClientAddr;
-	int addrlen = sizeof(ClientAddr);
-	int recv_retval;
-
-	// 메시지 전달용 패킷 선언
-	stPacketHeader Header;
-	stCreate Create;
-	stCreateOther CreateOther;
-	stMessage Message;
-	char buf[150];
-
-	NewSession->ClientSocket = accept(g_ListenSocket, (SOCKADDR*)&ClientAddr, &addrlen);
-	if (NewSession->ClientSocket == INVALID_SOCKET)
-	{
-		cout << "Accpet 에러: " << WSAGetLastError() << endl;
-		return 0;
-	}
-	else
-	{
-		recv_retval = recv(NewSession->ClientSocket, buf, sizeof(buf), 0);
-
-		NewSession->ID = ++g_ID;
-		strcpy(NewSession->NickName, buf + 3);
-		g_ClientList.push_back(NewSession);
-
-		// 캐릭터 생성 메시지 전달
-		mpCreate(&Header, &Create, NewSession->NickName);
-		SendUniCast(NewSession, &Header, (char*)&Create);
-
-		// 다른 캐릭터에게 내 캐릭터 생성 메시지 전달
-		mpCreateOther(&Header, &CreateOther, NewSession->NickName);
-		SendBroadCast(NewSession, &Header, (char*)&CreateOther);
-
-		// 다른 캐릭터의 생성 메시지를 나에게 전달
-		/*for (auto& entry : g_ClientList)
-		{
-			if (entry != NewSession)
-			{
-				mpCreateOther(&Header, &CreateOtherCharacter, entry->ID, entry->Direction, entry->xPos, entry->yPos, 100);
-				SendUniCast(NewSession, &Header, (char*)&CreateOtherCharacter);
-			}
-		}*/
-	}
-}
-
 void SendUniCast(SESSION* pSession, stPacketHeader* Header, char* pPacket)
 {
 	pSession->SendQ.Enqueue((char*)Header, sizeof(stPacketHeader));
@@ -317,6 +324,6 @@ void Disconnect(SESSION* pSession)
 	SendBroadCast(NULL, &Header, (char*)&Delete);
 
 	closesocket(pSession->ClientSocket);
-	pSession->ClientSocket = INVALID_SOCKET;
 	delete(pSession);
+	pSession->ClientSocket = INVALID_SOCKET;
 }

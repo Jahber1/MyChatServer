@@ -22,7 +22,7 @@ bool netPacketProc_Message(SESSION* pSession, char* pPacket)
     // 자신을 포함한 현재 접속중인 모든 사용자에게 메시지 전달
     stPacketHeader Header;
     stMessage SendMsg;
-    mpMessage(&Header, &SendMsg, pMessage->Message);
+    mpMessage(&Header, &SendMsg, pMessage->NickName, pMessage->Message);
     SendBroadCast(NULL, &Header, (char*)&SendMsg);
 
     return true;
