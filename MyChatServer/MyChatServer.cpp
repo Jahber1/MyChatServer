@@ -29,7 +29,7 @@ int main(void)
 		cout << "윈속 초기화 에러" << endl;
 		DebugBreak();
 	}
-
+	
 	// 소켓 생성
 	g_ListenSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (g_ListenSocket == INVALID_SOCKET)
@@ -146,6 +146,9 @@ int main(void)
 
 int netProc_Accept()
 {
+	FD_SET rset;
+	FD_ZERO(&rset);
+	
 	// 새로운 세션 생성
 	SESSION* NewSession = new SESSION;
 	ZeroMemory(NewSession, sizeof(NewSession));
@@ -153,6 +156,7 @@ int netProc_Accept()
 	// 클라 정보 받을 변수 선언
 	SOCKADDR_IN ClientAddr;
 	int addrlen = sizeof(ClientAddr);
+	int select_retval;
 	int recv_retval;
 
 	// 메시지 전달용 패킷 선언
@@ -160,8 +164,10 @@ int netProc_Accept()
 	stCreate Create;
 	stCreateOther CreateOther;
 	char buf[150];
+	char szClientIP[16];
 
 	NewSession->ClientSocket = accept(g_ListenSocket, (SOCKADDR*)&ClientAddr, &addrlen);
+
 	if (NewSession->ClientSocket == INVALID_SOCKET)
 	{
 		cout << "Accpet 에러: " << WSAGetLastError() << endl;
@@ -169,20 +175,34 @@ int netProc_Accept()
 	}
 	else
 	{
-		cout << "연결 성공" << endl;
-		recv_retval = recv(NewSession->ClientSocket, buf, sizeof(buf), 0);
+		FD_SET(NewSession->ClientSocket, &rset);
 
-		NewSession->ID = ++g_ID;
-		strcpy_s(NewSession->NickName, buf + 3);
-		g_ClientList.push_back(NewSession);
+		timeval tval;
+		tval.tv_sec = 0;
+		tval.tv_usec = 200 * 1000;
+		select_retval = select(0, &rset, NULL, NULL, &tval);
 
-		// 유저 접속 메시지 전달
-		/*mpCreate(&Header, &Create, NewSession->NickName);
-		SendUniCast(NewSession, &Header, (char*)&Create);*/
+		inet_ntop(AF_INET, &ClientAddr.sin_addr, szClientIP, 16);
 
-		// 다른 유저에게 내 접속 메시지 전달
-		mpCreateOther(&Header, &CreateOther, NewSession->NickName);
-		SendBroadCast(NewSession, &Header, (char*)&CreateOther);
+		if(select_retval != SOCKET_ERROR || select != 0)
+		{
+			recv_retval = recv(NewSession->ClientSocket, buf, sizeof(buf), 0);
+
+			NewSession->ID = ++g_ID;
+			strcpy_s(NewSession->NickName, buf + 3);
+			g_ClientList.push_back(NewSession);
+
+			printf("[TCP %s:%d]에서 ", szClientIP, ntohs(ClientAddr.sin_port));
+			printf("%s님 연결 성공\n", NewSession->NickName);
+
+			// 유저 접속 메시지 전달
+			/*mpCreate(&Header, &Create, NewSession->NickName);
+			SendUniCast(NewSession, &Header, (char*)&Create);*/
+
+			// 다른 유저에게 내 접속 메시지 전달
+			mpCreateOther(&Header, &CreateOther, NewSession->NickName);
+			SendBroadCast(NewSession, &Header, (char*)&CreateOther);
+		}
 	}
 }
 
